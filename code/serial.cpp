@@ -1,6 +1,9 @@
 #include <iostream>
 #include <random>
 
+#include <cuda.h>
+#include <curand_kernel.h>
+
 using namespace std;
 
 typedef struct prediction
@@ -12,7 +15,6 @@ pred gaussian_process(double* state){
 
 	// design control input?
 	pred out;
-	std::cout << "GP received state " << state[0] << state[1] << state[2] << endl;
 	out.pred[0] = 6;
 	out.pred[1] = 4;
 	return out;
@@ -21,7 +23,6 @@ pred gaussian_process(double* state){
 
 void step_random(double *current_state, int dim, double dt, double *next_state){
 
-    std::cout << "received state " << current_state[0] << current_state[1] << current_state[2] << std::endl;
     std::random_device rd{};
     std::mt19937 gen{rd()};
 
@@ -60,8 +61,9 @@ int main(){
 	}
 	
 	for (int i=0; i<N; i++){
-		std::cout << states[i][0] << states[i][1] << states[i][2] << std::endl;
+		//std::cout << states[i][0] << states[i][1] << states[i][2] << std::endl;
 		step_random( states[i], n, dt, states_next[i] );
+		//cout << "next state " << states_next[i][0] << "\t" << states_next[i][1] << "\t" << states_next[i][2] << endl; 
 	}
 
 	return 0;
