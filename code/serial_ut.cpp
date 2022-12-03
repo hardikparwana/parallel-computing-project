@@ -1,11 +1,15 @@
-#include <iostream>
-#include <random>
-#include <cmath>
+/*
+	Compile using: nvcc frobenius.cpp moments.cpp tensor_product.cpp rank_decomposition.cpp hopm.cpp serial_ut.cpp
+*/
 
-#include <cuda.h>
-#include <curand_kernel.h>
+#include "include/params.hpp"
+// #include <cuda.h>
+// #include <curand_kernel.h>
 
-#define DIM 3
+#include "include/frobenius.hpp"
+#include "include/tensor_product.hpp"
+#include "include/moments.hpp"
+#include "include/rank_decomposition.hpp"
 
 using namespace std;
 
@@ -78,244 +82,10 @@ void expand( double** particles, double* weights, int N, int n, double** particl
 	return;
 }
 
-void mean( double** particles, double *weights, int N, int n, double *mu ){
-	for (int i=0; i<n; i++){
-		mu[i] = 0;
-	}
-
-	for (int i=0; i<N; i++){
-		double* particle = particles[i];
-		double weight = weights[i];
-		for (int j=0; j<n; j++){
-			mu[j] = mu[j] + weight * particle[j];
-		}
-	}
-	return;
-}
-
-void covariance( double** particles, double *weights, int N, int n, double* mu, double **cov ){
-        for (int i=0; i<n; i++){
-		for (int j=0; j<n; j++){
-                	cov[i][j] = 0;
-		}
-        }
-
-        for (int k=0; k<N; k++){
-                double* particle = particles[k];
-                double weight = weights[k];
-                for (int i=0; i<n; i++){
-			for (int j=0; j<n; j++){
-                        	cov[i][j] = cov[i][j] + weight * (particle[i] - mu[i] ) * (  particle[j] - mu[j]);
-			}
-                }
-        }
-        return;
-}
-
-void skewness( double** particles, double* weights, int N, int n, double* mu, double*** skew ){
-	bool initialzied = false;
-
-	for (int i=0; i<n; i++){
-		for (int j=0; j<n; j++){
-			for (int l=0;l<n;l++){
-				skew[i][j][l] = 0;
-			}
-		}
-	}
-
-	for (int k=0; k<N; k++){
-		double* particle = particles[k];
-		double weight = weights[k];
-		for (int i=0; i<n; i++){
-			for (int j=0; j<n;j++){
-				for (int l=0; l<n; l++){
-					skew[i][j][l] = skew[i][j][l] + weight * ( particle[i]-mu[i] ) * ( particle[j]-mu[j] ) * ( particle[l]-mu[l] );
-				}
-			}
-		}
-	}
-}
-
-float kurtosis( double** particles, double *weights, int N, int n, double* mu, double**** kurt  ){
-
-	bool initialzied = false;
-
-	for (int i=0; i<n; i++){
-		for (int j=0; j<n; j++){
-			for (int l=0;l<n;l++){
-					for (int m=0; m<n; m++){
-						kurt[i][j][l][m] = 0;
-					}
-			}
-		}
-	}
-
-	for (int k=0; k<N; k++){
-		double* particle = particles[k];
-		double weight = weights[k];
-		for (int i=0; i<n; i++){
-			for (int j=0; j<n;j++){
-				for (int l=0; l<n; l++){
-					for (int m=0; m<n; m++){
-						kurt[i][j][l][m] = kurt[i][j][l][m] + weight * ( particle[i]-mu[i] ) * ( particle[j]-mu[j] ) * ( particle[l]-mu[l] ) * ( particle[m]-mu[m] );
-					}
-				}
-			}
-		}
-	}
-
-
-}
-
-void tensor_product2( double* v, double tensor[][DIM] ){
-	for (int i=0; i<DIM; i++){
-		for (int j=0; j<DIM; j++){
-			tensor[i][j] = v[i] * v[j];
-		}
-	}
-}
-
-void tensor_product3( double* v, double*** tensor ){ // int k
-	// k: is only the dimension of the matrix: what matters is 1 to n only
-	for (int h=0; h<DIM; h++){
-		for (int i=0; i<DIM; i++){
-			for (int j=0; j<DIM; j++){
-				tensor[h][i][j] = v[h] * v[i] * v[j];
-			}
-		}
-	}
-	
-}
-
-void tensor_product4( double* v, double**** tensor ){
-	for (int g=0; g<DIM; g++){
-		for (int h=0; h<DIM; h++){
-			for (int i=0; i<DIM; i++){
-				for (int j=0; j<DIM; j++){
-					tensor[g][h][i][j] =  v[g] * v[h] * v[i] * v[j];
-				}
-			}
-		}
-	}
-}
-
 // access 3D array[n][o][p] for i,j,k: array[  i*(o*p) + j*(p) + k   ]
 // access 4D array[m][n][o][p] for i,j,k,l: array[ i*(n*o*p) + j*(o*p) + k*p + l ]: easy now
 
-double frobenius3( double***matrix ){
-	double norm;
-	for (int i=0; i<DIM; i++){
-		for (int j=0; j<DIM; j++){
-			for (int k=0; k<DIM; k++){
-				norm += matrix[i][j][k] * matrix[i][j][k];		
-			}
-		}
-	}
-	norm = sqrt(norm);
-}
-
-void HOPM4( double**** tensor, double* v1, double& lambda ){
-	return;
-}
-
-void HOPM3( double*** tensor, double* v1, double& lambda ){
-	// reshape into d x d^{k-1} and compute left eigenvector
-	int k = 3;
-	double v0[DIM];
-	double vectors[k][DIM];
-	for (int i=0; i<k;k++){
-		for (int j=0; j<DIM; j++){
-			vectors[i][j] = v0[j];
-		}
-	}
-	lambda = 100000;// Infinity
-	double lambda_prev = 0;
-	double epsilon = 0.3;
-
-	while ( abs(lambda-lambda_prev)>epsilon ){
-	//	for (int l=1; l<k; l++){
-	//		v_s^l = T[][][]
-	//	}
-
-		for (int h=0; h<DIM; h++){
-			for (int i=0; i<DIM; i++){
-				for (int j=0; j<DIM; j++){
-					for (int l=0; l<k; l++){
-						for (int s=0; s<DIM; s++){		
-							if (l==0){
-								vectors[l][s] = vectors[l][s] + tensor[s][i][j] * vectors[l+1][l+1] * vectors[l+2][l+2];
-							}
-							else if (l==1){
-								vectors[l][s] = vectors[l][s] + tensor[h][s][j] * vectors[l-1][l-1] * vectors[l+1][l+1];
-							}
-							else if (l==2){
-								vectors[l][s] = vectors[l][s] + tensor[h][i][s] * vectors[l-2][l-2] * vectors[l-1][l-1];
-							}
-						}
-					}
-				}
-			}
-		}
-
-		lambda_prev = lambda;
-		lambda = 0;
-		for (int h=0; h<DIM; h++){
-			for (int i=0; i<DIM; i++){
-				for (int j=0; j<DIM; j++){
-					lambda = lambda + tensor[h][i][j] * vectors[0][0];
-				}
-			}
-		}
-	}
-
-	for (int i=0;i<DIM;i++){
-		v1[i] = vectors[0][i];	
-	}
-
-	return;
-}
-	
-
-void rank1_decomposition3(double*** tensor, double tolerance, double* vector){
-	double norm = frobenius3(tensor);
-	double v[DIM];
-	double lambda;
-	int k = 3;
-
-	double s[100];
-	int i = 0;
-	while (norm > tolerance){
-		HOPM3( tensor, v, lambda );
-		s[i] = lambda/abs(lambda);
-
-		double vi = pow(abs(lambda), 1.0/k);
-		//T = T - s[i] * vectors[i]
-		
-
-		i = i + 1;
-	}
-}
-
-void rank1_decomposition4(double**** tensor, double tolerance, double* vector){
-	double norm = frobenius4(tensor);
-	double v[DIM];
-	double lambda;
-	int k = 3;
-
-	double s[100];
-	int i = 0;
-	while (norm > tolerance){
-		HOPM4( tensor, v, lambda );
-		s[i] = lambda/abs(lambda);
-
-		double vi = pow(abs(lambda), 1.0/k);
-		//T = T - s[i] * vectors[i]
-		
-
-		i = i + 1;
-	}
-}
-
+/*
 void generate_sigma_points(double mu, double** cov, double*** skew, double**** kurtosis){
 
 	int N = d + J + L;
@@ -428,6 +198,7 @@ void generate_sigma_points(double mu, double** cov, double*** skew, double**** k
 
 	return;		
 }
+*/
 
 int main(){
 
