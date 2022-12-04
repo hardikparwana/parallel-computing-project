@@ -1,6 +1,7 @@
 /*
 	Compile using: nvcc frobenius.cpp moments.cpp tensor_product.cpp unfolding.cpp svd.cpp rank_decomposition.cpp hopm.cpp serial_ut.cpp
 */
+// free up memory everywhere
 
 #include "include/params.hpp"
 // #include <cuda.h>
@@ -85,7 +86,6 @@ void expand( double** particles, double* weights, int N, int n, double** particl
 
 // access 3D array[n][o][p] for i,j,k: array[  i*(o*p) + j*(p) + k   ]
 // access 4D array[m][n][o][p] for i,j,k,l: array[ i*(n*o*p) + j*(o*p) + k*p + l ]: easy now
-
 /*
 void generate_sigma_points(double mu, double** cov, double*** skew, double**** kurtosis){
 
@@ -199,8 +199,8 @@ void generate_sigma_points(double mu, double** cov, double*** skew, double**** k
 
 	return;		
 }
-*/
 
+*/
 int main(){
 
 	int N = 2; // number of particles
