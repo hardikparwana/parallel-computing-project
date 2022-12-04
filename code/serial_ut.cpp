@@ -1,5 +1,5 @@
 /*
-	Compile using: nvcc frobenius.cpp moments.cpp tensor_product.cpp rank_decomposition.cpp hopm.cpp serial_ut.cpp
+	Compile using: nvcc frobenius.cpp moments.cpp tensor_product.cpp unfolding.cpp svd.cpp rank_decomposition.cpp hopm.cpp serial_ut.cpp
 */
 
 #include "include/params.hpp"
@@ -9,6 +9,7 @@
 #include "include/frobenius.hpp"
 #include "include/tensor_product.hpp"
 #include "include/moments.hpp"
+#include "include/unfolding.hpp"
 #include "include/rank_decomposition.hpp"
 
 using namespace std;
