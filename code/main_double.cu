@@ -1,5 +1,5 @@
 #include <iostream>
-#include <float.h>
+// #include <double.h>
 #include <assert.h>
 #include <chrono>
 // #include <cmath>
@@ -7,18 +7,18 @@
 
 using namespace std;
 
-#define SIZE 5
-#define NUM 1000
+#define SIZE 2
+#define NUM 1500
 #define THREADS 100
 
-__global__ void cuda_mean( float* in_vectors, int n, int N, float *out_vector ){
+__global__ void cuda_mean( double* in_vectors, int n, int N, double *out_vector ){
 	/*
 	N: size of single vector
 	n: number of vectors
 	*/
 
-    __shared__ float temp_sum[THREADS * SIZE];// 1024 by default //sum done by each thread in shared memory //
-	__shared__ float temp_sum2[THREADS * SIZE];
+    __shared__ double temp_sum[THREADS * SIZE];// 1024 by default //sum done by each thread in shared memory //
+	__shared__ double temp_sum2[THREADS * SIZE];
     // printf("%d, %d, %f %f \n", threadIdx.x, threadIdx.x + n, in_vectors[threadIdx.x], in_vectors[threadIdx.x + n]);
 	// each thread does computation for all the elements
 
@@ -94,15 +94,15 @@ __global__ void cuda_mean( float* in_vectors, int n, int N, float *out_vector ){
 
 }
 
-__global__ void cuda_covariance( float* in_vectors, int n, int N, float* mu, float *out_matrix ){
+__global__ void cuda_covariance( double* in_vectors, int n, int N, double* mu, double *out_matrix ){
 
 		/*
 		N: size of single vector
 		n: number of vectors
 		*/  // assume less than 1024 vectors.. gross simplification
-        __shared__ float in_matrix[THREADS * SIZE * SIZE];
-		__shared__ float temp_sum[THREADS * SIZE * SIZE];// 1024 by default //sum done by each thread in shared memory //
-		__shared__ float temp_sum2[THREADS * SIZE * SIZE];
+        __shared__ double in_matrix[THREADS * SIZE * SIZE];
+		__shared__ double temp_sum[THREADS * SIZE * SIZE];// 1024 by default //sum done by each thread in shared memory //
+		__shared__ double temp_sum2[THREADS * SIZE * SIZE];
 
 		// each thread does computation for all the elements
 		for (int j=0; j<N*N; j++){
@@ -232,20 +232,20 @@ int main(){
     int n = NUM;
     int N = SIZE;
     
-    float init_mean = 0;
-    float init_std = 1.0;
+    double init_mean = 0;
+    double init_std = 1.0;
     // cout << "hello" << endl;
     // initialize vectors
-    int size = N*n * sizeof(float);
-    float *vectors = (float *)malloc(size);
-    float *d_vectors;
+    int size = N*n * sizeof(double);
+    double *vectors = (double *)malloc(size);
+    double *d_vectors;
     cout << "SIZE:  " << N*n << endl;
     if (cudaMalloc(&d_vectors, size) != cudaSuccess){
 		cout << "Could not allocate d_A" << endl;
 	}
     
-    float *d_mean;
-    float *d_cov;
+    double *d_mean;
+    double *d_cov;
     // cout << "hello1" << endl;
     // std::random_device rd{};
     // std::mt19937 gen{rd()};
@@ -273,10 +273,10 @@ int main(){
     ///////////////// Serial Computation ////////////////////////////
 
     // Mean
-    float mean[N];
-    float mean_out[N];
-    float cov[N*N];
-    float cov_out[N*N];
+    double mean[N];
+    double mean_out[N];
+    double cov[N*N];
+    double cov_out[N*N];
 
     for (int i=0; i<N; i++){
         mean[i] = 0;
@@ -311,15 +311,15 @@ int main(){
     // int size = N*n;
 	
     // cout << "hello y1" << endl;
-    if (cudaMalloc(&d_mean, N*sizeof(float)) != cudaSuccess){
+    if (cudaMalloc(&d_mean, N*sizeof(double)) != cudaSuccess){
 		cout << "Could not allocate d_mean" << endl;
 	}
     // cout << "hello y2" << endl;
-    if (cudaMalloc(&d_cov, N*N*sizeof(float)) != cudaSuccess){
+    if (cudaMalloc(&d_cov, N*N*sizeof(double)) != cudaSuccess){
 		cout << "Could not allocate d_cov" << endl;
 	}
     // cout << "hello y" << endl;
-    if (cudaMemcpy( d_vectors, vectors, N*n*sizeof(float), cudaMemcpyHostToDevice ) !=cudaSuccess){
+    if (cudaMemcpy( d_vectors, vectors, N*n*sizeof(double), cudaMemcpyHostToDevice ) !=cudaSuccess){
 		cout << "Could not copy vectors to d_vectors" << endl;
 	}
 	cout << "CUDA kernel call for matrix operations: num blocks: " << num_blocks << " threads " << max_threads_per_block << std::endl;	
@@ -329,8 +329,8 @@ int main(){
 
     cout << "hello5" << endl;
     // copy output to input matrix
-    cudaMemcpy(mean_out, d_mean, N*sizeof(float), cudaMemcpyDeviceToHost  );	
-    cudaMemcpy(cov_out, d_cov, N*N*sizeof(float), cudaMemcpyDeviceToHost  );	
+    cudaMemcpy(mean_out, d_mean, N*sizeof(double), cudaMemcpyDeviceToHost  );	
+    cudaMemcpy(cov_out, d_cov, N*N*sizeof(double), cudaMemcpyDeviceToHost  );	
 
     cout << "results mean: " << mean_out[0]/n << "\t" << mean_out[1]/n << endl;
     cout << "results cov: " << cov_out[0]/(n-1) << "\t" << cov_out[1]/(n-1) << "\t" << cov_out[2]/(n-1) << "\t" << cov_out[3]/(n-1) << endl;
