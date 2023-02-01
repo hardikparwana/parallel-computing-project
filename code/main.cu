@@ -2,14 +2,12 @@
 #include <float.h>
 #include <assert.h>
 #include <chrono>
-// #include <cmath>
-// #include <random>
 
 using namespace std;
 
-#define SIZE 5
+#define SIZE 2
 #define NUM 10000
-#define THREADS 200
+#define THREADS 900 // Max 1024
 
 __global__ void cuda_mean( float* in_vectors, int n, int N, float *out_vector ){
 	/*
@@ -196,6 +194,8 @@ int main(){
  
     int n = NUM;
     int N = SIZE;
+
+	cout << "NUM: " << NUM << " SIZE: " << SIZE << " threads: " << THREADS << endl;
     
     float init_mean = 0;
     float init_std = 1.0;
@@ -215,19 +215,9 @@ int main(){
     for (int i=0; i<n; i++){
         for (int j=0; j<N; j++){
             vectors[i + j*n] = i + sin(j*i);
-            // if (i<500){
-            //     vectors[i + j*n] = j*i;//d(gen);
-            // }
-            // else{
-            //     vectors[i + j*n] = j+1;//d(gen);
-            // }
-            
         }
     }
-    // vectors[0] = 3; vectors[1] = 6; vectors[2] = 4;
-    // vectors[3] = 7; vectors[4] = 12; vectors[5] = -9;
-  
-   
+
     ///////////////// Serial Computation ////////////////////////////
 
     // Mean
@@ -258,9 +248,9 @@ int main(){
         }
     }
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    std::cout << "Time(milliseconds) elapsed to perform mean, cov: " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()/1000.0 << std::endl;
-    cout << "hello3" << "\t" << mean[0]/n << "\t" << mean[1]/n << "\t" << mean[2]/n << "\t" << mean[3]/n << endl;
-    cout << "hello4" << "\t" << cov[0]/(n-1) << "\t" << cov[1]/(n-1) << "\t" << cov[2]/(n-1) << "\t" << cov[3]/(n-1) << endl;
+    std::cout << "Serial Time(milliseconds) elapsed to perform mean, cov: " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()/1000.0 << std::endl;
+    cout << "Serial mean (first 2 elements)" << "\t" << mean[0]/n << "\t" << mean[1]/n  << endl;
+    cout << "Serial cov (first 2 elements)" << "\t" << cov[0]/(n-1) << "\t" << cov[1]/(n-1)  << endl;
     //////////////// Parallel Computation ////////////////////////
     int num_threads = n;
     int num_blocks = 1;
@@ -291,13 +281,13 @@ int main(){
 	cudaEventSynchronize(stop);
     float milliseconds = 0;
 	cudaEventElapsedTime(&milliseconds, start, stop);
-    cout << "Time(milliseconds) elapsed to perform 10 iterations CUDA: " << milliseconds << endl;
+    cout << "Time(milliseconds) elapsed for CUDA functions: " << milliseconds << endl;
 
     cudaMemcpy(mean_out, d_mean, N*sizeof(float), cudaMemcpyDeviceToHost  );	
     cudaMemcpy(cov_out, d_cov, N*N*sizeof(float), cudaMemcpyDeviceToHost  );	
 
     cout << "results mean: " << mean_out[0]/n << "\t" << mean_out[1]/n << endl;
-    cout << "results cov: " << cov_out[0]/(n-1) << "\t" << cov_out[1]/(n-1) << "\t" << cov_out[2]/(n-1) << "\t" << cov_out[3]/(n-1) << endl;
+    cout << "results cov: " << cov_out[0]/(n-1) << "\t" << cov_out[1]/(n-1) << endl;
 
     return 0;
     

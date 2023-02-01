@@ -1,15 +1,12 @@
 #include <iostream>
-// #include <double.h>
 #include <assert.h>
 #include <chrono>
-// #include <cmath>
-// #include <random>
 
 using namespace std;
 
 #define SIZE 2
-#define NUM 1500
-#define THREADS 500
+#define NUM 1000
+#define THREADS 100
 
 __global__ void cuda_mean( double* in_vectors, int n, int N, double *out_vector ){
 	/*
@@ -28,7 +25,6 @@ __global__ void cuda_mean( double* in_vectors, int n, int N, double *out_vector 
 	int num_elements_per_thread = (n + THREADS - 1) / THREADS;
 
 	// first collapse to 1024 elements only
-    __syncthreads();
 	for (int j=0; j<N; j++){
 		for (int i=0; i<num_elements_per_thread; i++){
 				if ( (threadIdx.x + i*THREADS) < n ){
@@ -48,7 +44,7 @@ __global__ void cuda_mean( double* in_vectors, int n, int N, double *out_vector 
 		active_threads = n;
 	int new_active_threads = 1 + (active_threads-1) / elements_per_thread; // active threads after summed in groups of 5
 	
-	// __syncthreads();
+	__syncthreads();
 
 	while (active_threads > 1){//elements_per_thread){
 		int startIdx = threadIdx.x * elements_per_thread; // start vector number. now take 5 consecutive vectors
@@ -171,6 +167,7 @@ __global__ void cuda_covariance( double* in_vectors, int n, int N, double* mu, d
 		if (startIdx < active_threads){
 			for (int j=0; j<N*N; j++){
 					temp_sum[j*THREADS + threadIdx.x] = temp_sum2[j*THREADS + startIdx];
+
 			}
 		}
 
@@ -196,6 +193,8 @@ int main(){
  
     int n = NUM;
     int N = SIZE;
+
+	cout << "NUM: " << NUM << " SIZE: " << SIZE << " threads: " << THREADS << endl;
     
     double init_mean = 0;
     double init_std = 1.0;
@@ -212,24 +211,13 @@ int main(){
     double *d_mean;
     double *d_cov;
 
-    // std::random_device rd{};
-    // std::mt19937 gen{rd()};
-    // std::normal_distribution<> d{init_mean,init_std};
     for (int i=0; i<n; i++){
         for (int j=0; j<N; j++){
             vectors[i + j*n] = i + sin(j*i);
-            // if (i<500){
-            //     vectors[i + j*n] = j*i;//d(gen);
-            // }
-            // else{
-            //     vectors[i + j*n] = j+1;//d(gen);
-            // }
             
         }
     }
-    // vectors[0] = 3; vectors[1] = 6; vectors[2] = 4;
-    // vectors[3] = 7; vectors[4] = 12; vectors[5] = -9;
-   
+
     ///////////////// Serial Computation ////////////////////////////
 
     // Mean
@@ -247,7 +235,6 @@ int main(){
     }
     for (int i=0; i<n; i++){
         for (int j=0; j<N; j++){
-            // cout << "element number: " << (i+n*j) << endl;
             mean[j] = mean[j] + vectors[ i + n*j ];
         }
     }
@@ -260,24 +247,21 @@ int main(){
         }
     }
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    std::cout << "Time(milliseconds) elapsed to perform mean, cov: " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()/1000.0 << std::endl;
-    cout << "hello3" << "\t" << mean[0]/n << "\t" << mean[1]/n << "\t" << mean[2]/n << "\t" << mean[3]/n << endl;
-    cout << "hello4" << "\t" << cov[0]/(n-1) << "\t" << cov[1]/(n-1) << "\t" << cov[2]/(n-1) << "\t" << cov[3]/(n-1) << endl;
+    std::cout << "Serial Time(milliseconds) elapsed to perform mean, cov: " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()/1000.0 << std::endl;
+    cout << "Serial mean (first 2 elements)" << "\t" << mean[0]/n << "\t" << mean[1]/n  << endl;
+    cout << "Serial cov (first 2 elements)" << "\t" << cov[0]/(n-1) << "\t" << cov[1]/(n-1)  << endl;
     //////////////// Parallel Computation ////////////////////////
     int num_threads = n;
     int num_blocks = 1;
     int max_threads_per_block = THREADS;
-    // int num_blocks = ( num_threads + max_threads_per_block - 1 ) / max_threads_per_block;
 
  
     if (cudaMalloc(&d_mean, N*sizeof(double)) != cudaSuccess){
 		cout << "Could not allocate d_mean" << endl;
-	}
-   
+	}   
     if (cudaMalloc(&d_cov, N*N*sizeof(double)) != cudaSuccess){
 		cout << "Could not allocate d_cov" << endl;
-	}
-   
+	}   
     if (cudaMemcpy( d_vectors, vectors, N*n*sizeof(double), cudaMemcpyHostToDevice ) !=cudaSuccess){
 		cout << "Could not copy vectors to d_vectors" << endl;
 	}
@@ -295,14 +279,13 @@ int main(){
 	cudaEventSynchronize(stop);
     float milliseconds = 0;
 	cudaEventElapsedTime(&milliseconds, start, stop);
-    cout << "Time(milliseconds) elapsed to perform 10 iterations CUDA: " << milliseconds << endl;
+    cout << "Time(milliseconds) elapsed for CUDA functions: " << milliseconds << endl;
 
-    // copy output to input matrix
     cudaMemcpy(mean_out, d_mean, N*sizeof(double), cudaMemcpyDeviceToHost  );	
     cudaMemcpy(cov_out, d_cov, N*N*sizeof(double), cudaMemcpyDeviceToHost  );	
 
     cout << "results mean: " << mean_out[0]/n << "\t" << mean_out[1]/n << endl;
-    cout << "results cov: " << cov_out[0]/(n-1) << "\t" << cov_out[1]/(n-1) << "\t" << cov_out[2]/(n-1) << "\t" << cov_out[3]/(n-1) << endl;
+    cout << "results cov: " << cov_out[0]/(n-1) << "\t" << cov_out[1]/(n-1) << endl;
 
     return 0;
     
